@@ -17,56 +17,146 @@ while (true)
 
 Console.WriteLine();
 
-var letters = ReadLetters(sheetClient, sheetUrl);
-if (letters.Count == 0)
+ConsoleHelper.WriteCommandLinePrompt("Введите символ режима работы и нажмите ENTER. Пустая строка или \"s\" для отправки, \"d\" для удаления.");
+Console.WriteLine();
+var approveCommand = Console.ReadLine()?.Trim()?.ToLowerInvariant();
+if (approveCommand == "d")
 {
-    ConsoleHelper.WriteInfoLine("Не удалось зачитать ни одного сообщения для отправки...");
+    await ProcessDeletePostponedMessagesAsync();
+}
+else if (approveCommand == "" || approveCommand == "s")
+{
+    await ProcessSendingLetters();
+}
+else
+{
+    ConsoleHelper.WriteCommandLinePrompt("Неизвеестный режим работы. Нажмите ENTER, чтобы выйти из приложения");
+    Console.ReadLine();
+}
+
+
+
+async Task ProcessDeletePostponedMessagesAsync()
+{
+    var letters = ReadLetters(sheetClient, sheetUrl);
+    var tos = letters.Select(l => l.To).Distinct().ToList();
+    if (tos.Count == 0)
+    {
+        ConsoleHelper.WriteInfoLine("Не удалось зачитать ни одного отправителя...");
+        ConsoleHelper.WriteCommandLinePrompt("Нажмите ENTER, чтобы выйти из приложения");
+        Console.ReadLine();
+        return;
+    }
+
+    foreach (var to in tos)
+    {
+        ConsoleHelper.WriteInfoLine($"Обработка отложенных сообщений для {to}");
+
+        var chat = await tdClient.SmartSearchChatAsync(to);
+
+        if (chat != null)
+        {
+            var username = chat.Type is TdApi.ChatType.ChatTypePrivate chatType ? await tdClient.GetUsernameByUserId(chatType.UserId) : null;
+            ConsoleHelper.WriteInfo("Чат: ");
+            if (username != null)
+                Console.WriteLine($"{chat.Title} / {username}");
+            else
+                Console.WriteLine($"{chat.Title}");
+
+            var messages = await tdClient.SearchPostponedMessageAsync(chat, string.Empty);
+            var deletingMessages = new List<TdApi.Message>();
+            foreach (var message in messages)
+            {
+                if (message.Content is TdApi.MessageContent.MessageText messageText)
+                {
+                    long sendTimestamp = message.Date;
+                    if (message.SchedulingState is TdApi.MessageSchedulingState.MessageSchedulingStateSendAtDate sendAtDate)
+                        sendTimestamp = sendAtDate.SendDate;
+
+                    var sendTime = DateTimeOffset.FromUnixTimeSeconds(sendTimestamp).DateTime;
+                    ConsoleHelper.WriteInfo("Время отправки: ");
+                    Console.WriteLine($"{sendTime.ToString("ddd dd.MM.yyyy hh:mm")} (локальное)");
+                    Console.WriteLine();
+                    Console.WriteLine(messageText.Text.Text);
+                    Console.WriteLine();
+                    Console.WriteLine();
+
+                    deletingMessages.Add(message);
+                }
+            }
+
+            ConsoleHelper.WriteCommandLinePrompt("Нажмите ENTER, чтобы продолжить без удаления сообщений, либо введите символ \"d\" или слово \"delete\", чтобы удалить сообщения для этого получателя.");
+            Console.WriteLine();
+            var command = Console.ReadLine()?.Trim()?.ToLowerInvariant();
+            if (command == "d" || command == "delete")
+            {
+                await tdClient.DeleteMessagesForAllAsync(chat, deletingMessages);
+                ConsoleHelper.WriteInfoLine("Сообщения были удалены");
+                Console.WriteLine();
+            }
+        }
+        else
+        {
+            ConsoleHelper.WriteErrorLine($"Не удалось определить адресата...");
+            Console.WriteLine();
+        }
+    }
+
     ConsoleHelper.WriteCommandLinePrompt("Нажмите ENTER, чтобы выйти из приложения");
     Console.ReadLine();
-    return;
 }
 
-ConsoleHelper.WriteInfoLine($"Было зачитано {letters.Count} {letters.Count.Pluralize("сообщение", "сообщения", "сообщений")} для отправки...");
-ConsoleHelper.WriteCommandLinePrompt("Нажмите ENTER, чтобы перейти к просмотру сообщений");
-Console.ReadLine();
-
-
-var tdLetters = new List<TdLetter>();
-var withoutPreview = false;
-foreach (var letter in letters)
+async Task ProcessSendingLetters()
 {
-    var tdLetter = await PrepareLetterAsync(tdClient, letter, withoutPreview);
-    if (tdLetter != null)
-        tdLetters.Add(tdLetter);
-
-    if (!withoutPreview)
+    var letters = ReadLetters(sheetClient, sheetUrl);
+    if (letters.Count == 0)
     {
-        ConsoleHelper.WriteCommandLinePrompt("Нажмите ENTER, чтобы продолжить, либо введите символ \"a\" или слово \"approve\", чтобы подготовить остальные сообщения без предварительного просмотра.");
-        Console.WriteLine();
-        var approveCommand = Console.ReadLine()?.Trim()?.ToLowerInvariant();
-        if (approveCommand == "a" || approveCommand == "approve")
-            withoutPreview = true;
+        ConsoleHelper.WriteInfoLine("Не удалось зачитать ни одного сообщения для отправки...");
+        ConsoleHelper.WriteCommandLinePrompt("Нажмите ENTER, чтобы выйти из приложения");
+        Console.ReadLine();
+        return;
     }
+
+    ConsoleHelper.WriteInfoLine($"Было зачитано {letters.Count} {letters.Count.Pluralize("сообщение", "сообщения", "сообщений")} для отправки...");
+    ConsoleHelper.WriteCommandLinePrompt("Нажмите ENTER, чтобы перейти к просмотру сообщений");
+    Console.ReadLine();
+
+
+    var tdLetters = new List<TdLetter>();
+    var withoutPreview = false;
+    foreach (var letter in letters)
+    {
+        var tdLetter = await PrepareLetterAsync(tdClient, letter, withoutPreview);
+        if (tdLetter != null)
+            tdLetters.Add(tdLetter);
+
+        if (!withoutPreview)
+        {
+            ConsoleHelper.WriteCommandLinePrompt("Нажмите ENTER, чтобы продолжить, либо введите символ \"a\" или слово \"approve\", чтобы подготовить остальные сообщения без предварительного просмотра.");
+            Console.WriteLine();
+            var approveCommand = Console.ReadLine()?.Trim()?.ToLowerInvariant();
+            if (approveCommand == "a" || approveCommand == "approve")
+                withoutPreview = true;
+        }
+    }
+
+
+    ConsoleHelper.WriteInfoLine($"Было подготовлено и проверено {tdLetters.Count} {tdLetters.Count.Pluralize("сообщение", "сообщения", "сообщений")} для отправки...");
+    ConsoleHelper.WriteCommandLinePrompt("Введите символ \"s\" или слово \"send\" и нажмите ENTER, чтобы отправить сообщения, либо нажмите ENTER, чтобы выйти из приложения.");
+    var sendCommand = Console.ReadLine()?.Trim()?.ToLowerInvariant();
+    Console.WriteLine();
+    if (sendCommand != "s" && sendCommand != "send")
+        return;
+
+    foreach (var letter in tdLetters)
+    {
+        await SendLetterAsync(tdClient, letter);
+        Thread.Sleep(300);
+    }
+
+    ConsoleHelper.WriteCommandLinePrompt("Нажмите ENTER, чтобы выйти из приложения");
+    Console.ReadLine();
 }
-
-
-ConsoleHelper.WriteInfoLine($"Было подготовлено и проверено {tdLetters.Count} {tdLetters.Count.Pluralize("сообщение", "сообщения", "сообщений")} для отправки...");
-ConsoleHelper.WriteCommandLinePrompt("Введите символ \"s\" или слово \"send\" и нажмите ENTER, чтобы отправить сообщения, либо нажмите ENTER, чтобы выйти из приложения.");
-var sendCommand = Console.ReadLine()?.Trim()?.ToLowerInvariant();
-Console.WriteLine();
-if (sendCommand != "s" && sendCommand != "send")
-    return;
-
-foreach(var letter in tdLetters)
-{
-    await SendLetterAsync(tdClient, letter);
-    Thread.Sleep(300);
-}
-
-ConsoleHelper.WriteCommandLinePrompt("Нажмите ENTER, чтобы выйти из приложения");
-Console.ReadLine();
-
-
 
 async Task<TdClient> ConfigureTdClient()
 {

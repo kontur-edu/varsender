@@ -361,6 +361,26 @@ public static class TdClientExtensions
         return result;
     }
 
+    public static async Task DeleteMessagesForAllAsync(this TdClient client, TdApi.Chat chat, IList<TdApi.Message> messages)
+    {
+        await client.ExecuteAsync(new TdApi.DeleteMessages
+        {
+            ChatId = chat.Id,
+            MessageIds = messages.Select(m => m.Id).ToArray(),
+            Revoke = true
+        });
+    }
+
+    public static async Task<List<TdApi.Message>> SearchPostponedMessageAsync(this TdClient client, TdApi.Chat chat, string? sampleText = null)
+    {
+        var scheduledMessages = (await client.GetChatScheduledMessagesAsync(chat.Id)).Messages_;
+        var result = scheduledMessages
+            .Where(m => sampleText == null
+                || m.Content is TdApi.MessageContent.MessageText messageText && messageText.Text.Text.Contains(sampleText))
+            .ToList();
+        return result;
+    }
+
     public static TdApi.FormattedText ShallowCopy(this TdApi.FormattedText input) =>
         new TdApi.FormattedText
         {
