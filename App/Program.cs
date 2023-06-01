@@ -1,8 +1,8 @@
 ﻿using varsender.App;
 
 
-var tdClient = await ConfigureTdClient();
-var sheetClient = await ConfigureGSheetClient();
+var tdClient = await ConfigureTdClientAsync();
+var sheetClient = await ConfigureGSheetClientAsync();
 
 
 string sheetUrl;
@@ -26,7 +26,7 @@ if (approveCommand == "d")
 }
 else if (approveCommand == "" || approveCommand == "s")
 {
-    await ProcessSendingLetters();
+    await ProcessSendingLettersAsync();
 }
 else
 {
@@ -106,7 +106,7 @@ async Task ProcessDeletePostponedMessagesAsync()
     Console.ReadLine();
 }
 
-async Task ProcessSendingLetters()
+async Task ProcessSendingLettersAsync()
 {
     var letters = ReadLetters(sheetClient, sheetUrl);
     if (letters.Count == 0)
@@ -158,7 +158,7 @@ async Task ProcessSendingLetters()
     Console.ReadLine();
 }
 
-async Task<TdClient> ConfigureTdClient()
+async Task<TdClient> ConfigureTdClientAsync()
 {
     var client = new TdClient();
     client.Bindings.SetLogVerbosityLevel(TdLogLevel.Fatal);
@@ -177,7 +177,7 @@ async Task<TdClient> ConfigureTdClient()
     return client;
 }
 
-async Task<GSheetClient> ConfigureGSheetClient()
+async Task<GSheetClient> ConfigureGSheetClientAsync()
 {
     ConsoleHelper.WriteInfoLine("Выполняется вход в Google Таблицы...");
     var sheetClient = new GSheetClient(await GAuth.AuthAsync(Settings.Instance));
