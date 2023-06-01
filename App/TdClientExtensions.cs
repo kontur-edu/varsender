@@ -199,11 +199,8 @@ public static class TdClientExtensions
         var message = (await client.SearchChatMessagesAsync(favChat.Id, tag, limit: 1))
             .Messages_.FirstOrDefault();
         if (message == null) return null;
-        
-        var messageText = message.Content as TdApi.MessageContent.MessageText;
-        if (messageText == null) return null;
-        
-        return messageText.Text;
+
+        return message.TryGetFormattedText();
     }
 
     public static async Task<TdApi.Chat> GetFavoritesChatAsync(this TdClient client)
@@ -381,6 +378,44 @@ public static class TdClientExtensions
         return result;
     }
 
+    public static async Task<List<TdApi.Message>> SelectChatMessagesAsync(
+        this TdClient client, string chatQuery, DateTime startDateTime)
+    {
+        var chat = (await client.SmartSearchChatAsync(chatQuery));
+        if (chat == null)
+            return new List<TdApi.Message>();
+
+        var startTimestamp = startDateTime.ToUnixTimestamp();
+
+        var messages = new List<TdApi.Message>();
+        long messageId = 0;
+        while (true)
+        {
+            var pack = (await client.SearchChatMessagesAsync(chat.Id, limit: 100, fromMessageId: messageId))
+                .Messages_.ToList();
+            var suitableMessages = pack.Where(m => m.Date >= startTimestamp).ToList();
+            if (suitableMessages.Count == 0)
+                break;
+            messages.AddRange(suitableMessages);
+            messageId = pack.Last().Id;
+        }
+
+        return messages;
+    }
+
+    public static List<(DateTime Time, TdApi.FormattedText Text)> ExtractTexts(this IList<TdApi.Message> messages)
+    {
+        var result = new List<(DateTime Time, TdApi.FormattedText Text)>();
+        foreach (var message in messages)
+        {
+            var time = message.Date.FromUnixTimestamp();
+            var text = message.TryGetFormattedText();
+            if (text != null)
+                result.Add((Time: time, Text: text));
+        }
+        return result;
+    }
+
     public static TdApi.FormattedText ShallowCopy(this TdApi.FormattedText input) =>
         new TdApi.FormattedText
         {
@@ -407,4 +442,12 @@ public static class TdClientExtensions
             Extra = input.Extra,
             Url = input.Url,
         };
+
+    public static TdApi.FormattedText? TryGetFormattedText(this TdApi.Message message) =>
+    message.Content switch
+    {
+        TdApi.MessageContent.MessageText messageText => messageText.Text,
+        TdApi.MessageContent.MessagePhoto messagePhoto => messagePhoto.Caption,
+        _ => null
+    };
 }

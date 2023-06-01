@@ -1,8 +1,12 @@
-﻿using varsender.App;
+﻿using System.Text.RegularExpressions;
+using varsender.App;
 
 
 var tdClient = await ConfigureTdClientAsync();
 var sheetClient = await ConfigureGSheetClientAsync();
+
+// await ExtractReportsAsync(tdClient); return;
+
 
 
 string sheetUrl;
@@ -317,4 +321,94 @@ async Task SendLetterAsync(TdClient client, TdLetter letter)
     await client.SendPostponedMessageAsync(letter.To, letter.UtcDateTime, letter.Text, false);
     ConsoleHelper.WriteSuccessLine($"Сообщение отправлено");
     Console.WriteLine();
+}
+
+async Task ExtractReportsAsync(TdClient client)
+{
+    var chatName = "Чат Проектное обучение ФИИТ";
+    var startDateTime = new DateTime(2023, 01, 01);
+    var outputFileName = "reports.csv";
+    var outputPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), outputFileName);
+    
+    var messages = await client.SelectChatMessagesAsync(chatName, startDateTime);
+    var reports = ExtractReportMessages(messages);
+
+    var goodReports = reports.Where(r => r.Ready).OrderBy(r => r.Team).ToList();
+    var badReports = reports.Where(r => !r.Ready).ToList();
+    var lines = new List<string>();
+    foreach (var r in goodReports)
+    {
+        Console.WriteLine(r);
+        lines.Add(r.ToCsv());
+    }
+
+    Console.WriteLine();
+    Console.WriteLine();
+
+    foreach (var r in badReports)
+    {
+        Console.WriteLine(r);
+    }
+
+    File.WriteAllLines(outputPath, lines);
+}
+
+IList<ReportMessage> ExtractReportMessages(List<TdApi.Message> messages)
+{
+    var texts = messages.ExtractTexts();
+
+    var reports = new List<ReportMessage>();
+    var reportRegex = new Regex("^.{0,2}([#отчеёт]{5})", RegexOptions.IgnoreCase);
+    var teamRegex = new Regex("^.{0,2}(([команда\\:]{6})|([team\\:]{4}))", RegexOptions.IgnoreCase);
+    var projectRegex = new Regex("^.{0,2}(([проект\\:]{5})|([project\\:]{5}))", RegexOptions.IgnoreCase);
+    var sprintRegex = new Regex("^.{0,2}(([спринт\\:]{5})|([sprint\\:]{5}))", RegexOptions.IgnoreCase);
+    foreach (var t in texts)
+    {
+        var lines = t.Text.Text.Split('\n');
+        var report = FoundValue(lines, reportRegex);
+        var team = FoundValue(lines, teamRegex);
+        var project = FoundValue(lines, projectRegex);
+        var sprint = FoundValue(lines, sprintRegex);
+        var ready = report != null && (team != null || project != null) && sprint != null;
+        var reportMessage = new ReportMessage(t.Text.Text,
+            report ?? string.Empty,
+            team ?? string.Empty,
+            project ?? string.Empty,
+            sprint ?? string.Empty,
+            t.Time,
+            ready);
+        reports.Add(reportMessage);
+    }
+    return reports;
+
+    string? FoundValue(string[] lines, Regex regex) =>
+        ExtractValue(lines.FirstOrDefault(l => regex.IsMatch(l)));
+
+    string? ExtractValue(string? line)
+    {
+        if (line == null)
+            return null;
+        var parts = line.Split(':');
+        if (parts.Length < 2)
+            return line.Trim();
+        return parts[1].Trim();
+    }
+}
+
+record ReportMessage(
+    string Text,
+    string Report, string Team, string Project, string Sprint,
+    DateTime Time,
+    bool Ready)
+{
+    public override string ToString()
+    {
+        var r = Ready ? "v" : "x";
+        return $"{r} r={Report}, t={Team}, p={Project}, s={Sprint}, t={Time}";
+    }
+
+    public string ToCsv()
+    {
+        return $"{Team};{Project};{Sprint};{Time.ToShortDateString()}";
+    }
 }
