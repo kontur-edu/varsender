@@ -216,21 +216,21 @@ public static class TdClientExtensions
         if (string.IsNullOrWhiteSpace(query))
             return null;
 
-        //{
-        //    var contacts = await client.SearchContactsAsync(query, 5);
-        //    if (contacts != null)
-        //    {
-        //        var suitableChats = new List<TdApi.Chat>();
-        //        foreach (var userId in contacts.UserIds)
-        //        {
-        //            var chat = await ChoosePrivateChatByUserId(userId, query);
-        //            if (chat != null)
-        //                suitableChats.Add(chat);
-        //        }
-        //        var singleChat = suitableChats.SingleOrDefault();
-        //        if (singleChat != null) return singleChat;
-        //    }
-        //}
+        {
+            var contacts = await client.SearchContactsAsync(query, 5);
+            if (contacts != null)
+            {
+                var suitableChats = new List<TdApi.Chat>();
+                foreach (var userId in contacts.UserIds)
+                {
+                    var chat = await ChoosePrivateChatByUserId(userId, query);
+                    if (chat != null)
+                        suitableChats.Add(chat);
+                }
+                var singleChat = suitableChats.SingleOrDefault();
+                if (singleChat != null) return singleChat;
+            }
+        }
 
         {
             var chats = await client.SearchChatsAsync(query, 5);
