@@ -197,7 +197,7 @@ public static class TdClientExtensions
 
         var tag = hashtag.StartsWith('#') ? hashtag : $"#{hashtag}";
         var message = (await client.SearchChatMessagesAsync(favChat.Id, tag, limit: 1))
-            .Messages_.FirstOrDefault();
+            .Messages.FirstOrDefault();
         if (message == null) return null;
 
         return message.TryGetFormattedText();
@@ -339,7 +339,10 @@ public static class TdClientExtensions
     {
         var content = new TdApi.InputMessageContent.InputMessageText
         {
-            DisableWebPagePreview = !enableWebPagePreview,
+            LinkPreviewOptions = new TdApi.LinkPreviewOptions
+            {
+                IsDisabled = !enableWebPagePreview
+            },
             Text = text
         };
 
@@ -392,7 +395,7 @@ public static class TdClientExtensions
         while (true)
         {
             var pack = (await client.SearchChatMessagesAsync(chat.Id, limit: 100, fromMessageId: messageId))
-                .Messages_.ToList();
+                .Messages.ToList();
             var suitableMessages = pack.Where(m => m.Date >= startTimestamp).ToList();
             if (suitableMessages.Count == 0)
                 break;

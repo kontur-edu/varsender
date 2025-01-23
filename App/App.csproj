@@ -15,10 +15,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="dotenv.net" Version="3.1.2" />
-    <PackageReference Include="Google.Apis.Sheets.v4" Version="1.60.0.2979" />
-    <PackageReference Include="TDLib" Version="1.8.9.1" />
-    <PackageReference Include="tdlib.native" Version="1.8.9" />
+    <PackageReference Include="dotenv.net" Version="3.2.1" />
+    <PackageReference Include="Google.Apis.Sheets.v4" Version="1.68.0.3658" />
+    <PackageReference Include="TDLib" Version="1.8.29" />
+    <PackageReference Include="tdlib.native" Version="1.8.29" />
   </ItemGroup>
 
   <ItemGroup>

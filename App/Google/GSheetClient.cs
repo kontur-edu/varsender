@@ -6,7 +6,7 @@ namespace varsender.App;
 
 public class GSheetClient
 {
-    public static Regex UrlRegex = new Regex("https://docs.google.com/spreadsheets/d/(.+)/edit#gid=(.+)", RegexOptions.Compiled);
+    public static Regex UrlRegex = new Regex("https://docs.google.com/spreadsheets/d/(.+)/edit(.+)#gid=(.+)", RegexOptions.Compiled);
 
     public GSheetClient(BaseClientService.Initializer initializer)
     {
@@ -20,7 +20,7 @@ public class GSheetClient
     {
         var match = UrlRegex.Match(url);
         var spreadsheetId = match.Groups[1].Value;
-        var sheetId = int.Parse(match.Groups[2].Value);
+        var sheetId = int.Parse(match.Groups[3].Value);
         return GetSpreadsheet(spreadsheetId).GetSheetById(sheetId);
     }
 
