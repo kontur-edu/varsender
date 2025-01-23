@@ -21,7 +21,7 @@ while (true)
 
 Console.WriteLine();
 
-ConsoleHelper.WriteCommandLinePrompt("Введите символ режима работы и нажмите ENTER. Пустая строка или \"s\" для отправки, \"d\" для удаления.");
+ConsoleHelper.WriteCommandLinePrompt("Введите символ режима работы и нажмите ENTER. Пустая строка или \"s\" для отправки, \"d\" для удаления, \"x\" для экспериментальной функции");
 Console.WriteLine();
 var approveCommand = Console.ReadLine()?.Trim()?.ToLowerInvariant();
 if (approveCommand == "d")
@@ -37,8 +37,6 @@ else
     ConsoleHelper.WriteCommandLinePrompt("Неизвеестный режим работы. Нажмите ENTER, чтобы выйти из приложения");
     Console.ReadLine();
 }
-
-
 
 async Task ProcessDeletePostponedMessagesAsync()
 {
@@ -79,7 +77,7 @@ async Task ProcessDeletePostponedMessagesAsync()
 
                     var sendTime = DateTimeOffset.FromUnixTimeSeconds(sendTimestamp).DateTime;
                     ConsoleHelper.WriteInfo("Время отправки: ");
-                    Console.WriteLine($"{sendTime.ToString("ddd dd.MM.yyyy hh:mm")} (локальное)");
+                    Console.WriteLine($"{sendTime.ToString("ddd dd.MM.yyyy HH:mm")} (локальное)");
                     Console.WriteLine();
                     Console.WriteLine(messageText.Text.Text);
                     Console.WriteLine();
@@ -142,6 +140,7 @@ async Task ProcessSendingLettersAsync()
             if (approveCommand == "a" || approveCommand == "approve")
                 withoutPreview = true;
         }
+        Thread.Sleep(100);
     }
 
 
@@ -259,7 +258,7 @@ async Task<TdLetter?> PrepareLetterAsync(TdClient tdClient, Letter letter, bool 
             else
                 Console.WriteLine($"{chat.Title}");
             ConsoleHelper.WriteInfo("Время отправки: ");
-            Console.WriteLine($"{sendTime.ToString("ddd dd.MM.yyyy hh:mm")} (локальное)");
+            Console.WriteLine($"{sendTime.ToString("ddd dd.MM.yyyy HH:mm")} (локальное)");
             Console.WriteLine();
             Console.WriteLine(message.Text);
             Console.WriteLine();
@@ -280,6 +279,14 @@ async Task<TdLetter?> PrepareLetterAsync(TdClient tdClient, Letter letter, bool 
         }
         else
         {
+            var username = chat.Type is TdApi.ChatType.ChatTypePrivate chatType ? await tdClient.GetUsernameByUserId(chatType.UserId) : null;
+            ConsoleHelper.WriteInfo("Чат: ");
+            if (username != null)
+                Console.WriteLine($"{chat.Title} / {username}");
+            else
+                Console.WriteLine($"{chat.Title}");
+            ConsoleHelper.WriteInfo("Время отправки: ");
+            Console.WriteLine($"{sendTime.ToString("ddd dd.MM.yyyy HH:mm")} (локальное)");
             ConsoleHelper.WriteSuccessLine($"Сообщение готово");
             Console.WriteLine();
         }
@@ -325,8 +332,8 @@ async Task SendLetterAsync(TdClient client, TdLetter letter)
 
 async Task ExtractReportsAsync(TdClient client)
 {
-    var chatName = "Чат Проектное обучение ФИИТ";
-    var startDateTime = new DateTime(2023, 01, 01);
+    var chatName = "Чат Проектный практикум ФИИТ";
+    var startDateTime = new DateTime(2024, 09, 10);
     var outputFileName = "reports.csv";
     var outputPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), outputFileName);
     
