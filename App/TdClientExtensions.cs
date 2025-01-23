@@ -451,6 +451,14 @@ public static class TdClientExtensions
     {
         TdApi.MessageContent.MessageText messageText => messageText.Text,
         TdApi.MessageContent.MessagePhoto messagePhoto => messagePhoto.Caption,
-        _ => null
+        TdApi.MessageContent.MessageAnimation messageAnimation => messageAnimation.Caption,
+        TdApi.MessageContent.MessageDocument messageDocument => messageDocument.Caption,
+        TdApi.MessageContent.MessageVideo messageVideo => messageVideo.Caption,
+        TdApi.MessageContent.MessageAudio messageAudio => messageAudio.Caption,
+        TdApi.MessageContent.MessageChatAddMembers _ => null,
+        TdApi.MessageContent.MessageChatJoinByLink _ => null,
+        TdApi.MessageContent.MessageChatJoinByRequest _ => null,
+        TdApi.MessageContent.MessageSticker _ => null,
+        _ => null,
     };
 }
